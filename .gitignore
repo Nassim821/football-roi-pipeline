@@ -1,0 +1,33 @@
+# Data (trop lourd pour GitHub)
+data/
+
+# Logs Airflow
+logs/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Environnement virtuel
+.env
+venv/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Airflow
+airflow.cfg
+airflow.db
+webserver_config.py
