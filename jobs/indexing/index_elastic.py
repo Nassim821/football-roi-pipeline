@@ -14,7 +14,11 @@ from config.config import USAGE_PATH, ES_HOST, ES_INDEX
 CL_INDEX      = "football_cl_roi"
 CLUSTER_INDEX = "football_roi_clusters"
 
+# Single-node ES: 0 replicas (sinon cluster YELLOW → create_index timeout)
+SINGLE_NODE_SETTINGS = {"number_of_shards": 1, "number_of_replicas": 0}
+
 ROI_MAPPING = {
+    "settings": SINGLE_NODE_SETTINGS,
     "mappings": {
         "properties": {
             "league_name":   {"type": "keyword"},
@@ -31,6 +35,7 @@ ROI_MAPPING = {
 }
 
 CL_MAPPING = {
+    "settings": SINGLE_NODE_SETTINGS,
     "mappings": {
         "properties": {
             "season":        {"type": "integer"},
@@ -46,6 +51,7 @@ CL_MAPPING = {
 
 
 CLUSTER_MAPPING = {
+    "settings": SINGLE_NODE_SETTINGS,
     "mappings": {
         "properties": {
             "league_name":    {"type": "keyword"},
