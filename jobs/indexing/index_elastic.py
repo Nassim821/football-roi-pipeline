@@ -102,18 +102,22 @@ def run():
     print(f"Indexed {len(cl_actions)} documents into '{CL_INDEX}'.")
 
     # --- ML Clusters ---
-    clusters = pd.read_parquet(f"{USAGE_PATH}/roi_clusters/data.parquet")
-    create_index(es, CLUSTER_INDEX, CLUSTER_MAPPING)
-    cluster_actions = [
-        {
-            "_index": CLUSTER_INDEX,
-            "_id":    f"{r['league_name']}_{r['season']}_{r['club_name']}",
-            "_source": r,
-        }
-        for r in clusters.to_dict(orient="records")
-    ]
-    helpers.bulk(es, cluster_actions)
-    print(f"Indexed {len(cluster_actions)} documents into '{CLUSTER_INDEX}'.")
+    cluster_path = f"{USAGE_PATH}/roi_clusters/data.parquet"
+    if os.path.exists(cluster_path):
+        clusters = pd.read_parquet(cluster_path)
+        create_index(es, CLUSTER_INDEX, CLUSTER_MAPPING)
+        cluster_actions = [
+            {
+                "_index": CLUSTER_INDEX,
+                "_id":    f"{r['league_name']}_{r['season']}_{r['club_name']}",
+                "_source": r,
+            }
+            for r in clusters.to_dict(orient="records")
+        ]
+        helpers.bulk(es, cluster_actions)
+        print(f"Indexed {len(cluster_actions)} documents into '{CLUSTER_INDEX}'.")
+    else:
+        print(f"Skipped '{CLUSTER_INDEX}': {cluster_path} not found (run ml_clustering first).")
 
 
 if __name__ == "__main__":

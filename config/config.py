@@ -1,7 +1,7 @@
 import os
 
-# API-Football
-API_FOOTBALL_KEY = os.getenv("API_FOOTBALL_KEY", "4d0e6c53aecbbc646f7eca5bb16c1d30")
+# API-Football — clé chargée depuis .env (cf. .env.example)
+API_FOOTBALL_KEY = os.getenv("API_FOOTBALL_KEY")
 API_FOOTBALL_BASE_URL = "https://v3.football.api-sports.io"
 
 # Leagues to track (id: name)
