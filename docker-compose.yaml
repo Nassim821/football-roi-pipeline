@@ -87,7 +87,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     - /Users/nassimelkharroubi/Documents/Projet_data/jobs:/opt/airflow/jobs
-    - /Users/nassimelkharroubi/Documents/Projet_data/data:/opt/airflow/data
+    - football-data:/opt/airflow/data
     - /Users/nassimelkharroubi/Documents/Projet_data:/opt/airflow/project_root
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
@@ -343,3 +343,10 @@ services:
 
 volumes:
   postgres-db-volume:
+  # Named volume for the datalake. Avoids the macOS virtioFS deadlock
+  # (Errno 35 — Resource deadlock avoided) that occurs when pandas/pyarrow
+  # access files on a bind mount. Seed once after `docker compose up`:
+  #   docker compose cp ./data/. airflow-worker:/opt/airflow/data/
+  # Dump back to host if needed:
+  #   docker compose cp airflow-worker:/opt/airflow/data/. ./data/
+  football-data:
