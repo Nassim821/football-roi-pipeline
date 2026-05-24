@@ -1,6 +1,6 @@
 """
 Formatting — Football standings
-Reads raw JSON, normalizes columns, converts dates to UTC, writes Parquet.
+Reads raw JSON, normalizes columns, writes Parquet via pandas.
 Output: data/formatted/football/standings/
 """
 import json
@@ -8,34 +8,29 @@ import os
 import glob
 from datetime import datetime, timezone
 
-from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
+import pandas as pd
 
 import sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.environ.get("PROJECT_ROOT", os.path.dirname(os.path.dirname(_HERE))))
-from config.config import RAW_PATH, FORMATTED_PATH, SPARK_MASTER
-
-SCHEMA_STANDINGS = StructType([
-    StructField("league_id",     IntegerType()),
-    StructField("league_name",   StringType()),
-    StructField("season",        IntegerType()),
-    StructField("club_name",     StringType()),
-    StructField("rank",          IntegerType()),
-    StructField("points",        IntegerType()),
-    StructField("played",        IntegerType()),
-    StructField("won",           IntegerType()),
-    StructField("drawn",         IntegerType()),
-    StructField("lost",          IntegerType()),
-    StructField("goals_for",     IntegerType()),
-    StructField("goals_against", IntegerType()),
-    StructField("ingested_at",   StringType()),
-])
+from config.config import RAW_PATH, FORMATTED_PATH
 
 
-def parse_standings_file(path: str) -> list[dict]:
-    with open(path) as f:
-        raw = json.load(f)
+def safe_open_json(path: str, retries: int = 8, delay: float = 3.0) -> dict:
+    import time
+    for i in range(retries):
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except OSError as e:
+            if i < retries - 1:
+                time.sleep(delay)
+            else:
+                raise
+
+
+def parse_standings_file(path: str) -> list:
+    raw = safe_open_json(path)
 
     rows = []
     ingested_at = datetime.now(timezone.utc).isoformat()
@@ -63,18 +58,7 @@ def parse_standings_file(path: str) -> list[dict]:
 
 
 def run():
-    spark = (
-        SparkSession.builder
-        .appName("format_football_standings")
-        .master(SPARK_MASTER)
-        .config("spark.hadoop.security.authentication", "simple")
-        .config("spark.driver.extraJavaOptions",
-                "--add-opens=java.base/javax.security.auth=ALL-UNNAMED "
-                "--add-opens=java.base/java.lang=ALL-UNNAMED")
-        .getOrCreate()
-    )
-    spark.sparkContext.setLogLevel("WARN")
-
+    import time; time.sleep(5)  # wait for macOS Docker FS locks to release
     all_rows = []
     for path in glob.glob(f"{RAW_PATH}/football/standings/**/*.json", recursive=True):
         all_rows.extend(parse_standings_file(path))
@@ -83,17 +67,18 @@ def run():
         print("No raw standings found.")
         return
 
-    df = spark.createDataFrame(all_rows, schema=SCHEMA_STANDINGS)
-    df = df.dropDuplicates(["league_id", "season", "club_name"])
+    df = pd.DataFrame(all_rows)
+    df = df.drop_duplicates(subset=["league_id", "season", "club_name"])
+
+    # Cast types
+    for col in ["league_id", "season", "rank", "points", "played",
+                "won", "drawn", "lost", "goals_for", "goals_against"]:
+        df[col] = df[col].astype("Int64")
 
     out = f"{FORMATTED_PATH}/football/standings"
     os.makedirs(out, exist_ok=True)
-
-    # Save via pandas to bypass Hadoop FileSystem Java 17+ incompatibility
-    pandas_df = df.toPandas()
-    pandas_df.to_parquet(out + "/data.parquet", index=False)
-    print(f"Written {len(pandas_df)} rows to {out}")
-    spark.stop()
+    df.to_parquet(f"{out}/data.parquet", index=False)
+    print(f"Written {len(df)} rows to {out}")
 
 
 if __name__ == "__main__":

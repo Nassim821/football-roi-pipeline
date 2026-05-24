@@ -128,9 +128,15 @@ with DAG(
     #  source_to_raw_3 → raw_to_formatted_3 ─┘                 │
     #                                          produce_usage_cl ─┤→ index_to_elastic
     #
-    source_to_raw_1 >> raw_to_formatted_1 >> produce_usage_roi
-    source_to_raw_2 >> raw_to_formatted_2 >> produce_usage_roi
-    source_to_raw_3 >> raw_to_formatted_3 >> produce_usage_cl
+    # Sources en parallèle
+    [source_to_raw_1, source_to_raw_2, source_to_raw_3] >> raw_to_formatted_1
 
+    # Tous les formats strictement séquentiels (évite deadlock macOS Docker)
+    raw_to_formatted_1 >> raw_to_formatted_2 >> raw_to_formatted_3
+
+    raw_to_formatted_2 >> produce_usage_roi
+    raw_to_formatted_3 >> produce_usage_cl
+
+    # ML puis indexation
     produce_usage_roi >> ml_clustering
     [ml_clustering, produce_usage_cl] >> index_to_elastic

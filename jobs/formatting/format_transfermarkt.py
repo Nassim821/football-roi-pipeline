@@ -1,30 +1,19 @@
 """
 Formatting — Transfermarkt squad values
 Reads raw JSON, cleans monetary values (e.g. "€45.20m" → 45.2),
-writes Parquet to data/formatted/transfermarkt/squad_values/
+writes Parquet via pandas to data/formatted/transfermarkt/squad_values/
 """
 import json
 import glob
 import os
 from datetime import datetime, timezone
 
-from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
+import pandas as pd
 
 import sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.environ.get("PROJECT_ROOT", os.path.dirname(os.path.dirname(_HERE))))
-from config.config import RAW_PATH, FORMATTED_PATH, SPARK_MASTER
-
-SCHEMA = StructType([
-    StructField("league",        StringType()),
-    StructField("season",        IntegerType()),
-    StructField("club_name",     StringType()),
-    StructField("squad_size",    IntegerType()),
-    StructField("avg_age",       FloatType()),
-    StructField("squad_value_m", FloatType()),
-    StructField("ingested_at",   StringType()),
-])
+from config.config import RAW_PATH, FORMATTED_PATH
 
 
 def parse_value_m(raw: str) -> float:
@@ -37,9 +26,21 @@ def parse_value_m(raw: str) -> float:
     return 0.0
 
 
-def parse_file(path: str) -> list[dict]:
-    with open(path) as f:
-        rows = json.load(f)
+def safe_open_json(path: str, retries: int = 8, delay: float = 3.0):
+    import time
+    for i in range(retries):
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except OSError:
+            if i < retries - 1:
+                time.sleep(delay)
+            else:
+                raise
+
+
+def parse_file(path: str) -> list:
+    rows = safe_open_json(path)
 
     ingested_at = datetime.now(timezone.utc).isoformat()
     result = []
@@ -60,18 +61,7 @@ def parse_file(path: str) -> list[dict]:
 
 
 def run():
-    spark = (
-        SparkSession.builder
-        .appName("format_transfermarkt")
-        .master(SPARK_MASTER)
-        .config("spark.hadoop.security.authentication", "simple")
-        .config("spark.driver.extraJavaOptions",
-                "--add-opens=java.base/javax.security.auth=ALL-UNNAMED "
-                "--add-opens=java.base/java.lang=ALL-UNNAMED")
-        .getOrCreate()
-    )
-    spark.sparkContext.setLogLevel("WARN")
-
+    import time; time.sleep(5)  # wait for macOS Docker FS locks to release
     all_rows = []
     for path in glob.glob(f"{RAW_PATH}/transfermarkt/squad_values/**/*.json", recursive=True):
         all_rows.extend(parse_file(path))
@@ -80,17 +70,17 @@ def run():
         print("No raw Transfermarkt data found.")
         return
 
-    df = spark.createDataFrame(all_rows, schema=SCHEMA)
-    df = df.dropDuplicates(["league", "season", "club_name"])
+    df = pd.DataFrame(all_rows)
+    df = df.drop_duplicates(subset=["league", "season", "club_name"])
+    df["season"]     = df["season"].astype("Int64")
+    df["squad_size"] = df["squad_size"].astype("Int64")
+    df["avg_age"]    = df["avg_age"].astype(float)
+    df["squad_value_m"] = df["squad_value_m"].astype(float)
 
     out = f"{FORMATTED_PATH}/transfermarkt/squad_values"
     os.makedirs(out, exist_ok=True)
-
-    # Save via pandas to bypass Hadoop FileSystem Java 17+ incompatibility
-    pandas_df = df.toPandas()
-    pandas_df.to_parquet(out + "/data.parquet", index=False)
-    print(f"Written {len(pandas_df)} rows to {out}")
-    spark.stop()
+    df.to_parquet(f"{out}/data.parquet", index=False)
+    print(f"Written {len(df)} rows to {out}")
 
 
 if __name__ == "__main__":

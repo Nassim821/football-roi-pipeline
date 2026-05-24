@@ -64,9 +64,21 @@ STAGE_NAMES = {
 }
 
 
+def safe_open_json(path: str, retries: int = 8, delay: float = 3.0):
+    import time
+    for i in range(retries):
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except OSError:
+            if i < retries - 1:
+                time.sleep(delay)
+            else:
+                raise
+
+
 def parse_fixtures(path: str) -> list[dict]:
-    with open(path) as f:
-        data = json.load(f)
+    data = safe_open_json(path)
 
     team_stages: dict[tuple, dict] = {}
 
@@ -107,6 +119,7 @@ def parse_fixtures(path: str) -> list[dict]:
 
 
 def run():
+    import time; time.sleep(5)  # wait for macOS Docker FS locks to release
     all_rows = []
     for path in glob.glob(f"{RAW_PATH}/champions_league/fixtures/**/*.json", recursive=True):
         all_rows.extend(parse_fixtures(path))
