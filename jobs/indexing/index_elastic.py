@@ -11,7 +11,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.environ.get("PROJECT_ROOT", os.path.dirname(os.path.dirname(_HERE))))
 from config.config import USAGE_PATH, ES_HOST, ES_INDEX
 
-CL_INDEX = "football_cl_roi"
+CL_INDEX      = "football_cl_roi"
+CLUSTER_INDEX = "football_roi_clusters"
 
 ROI_MAPPING = {
     "mappings": {
@@ -39,6 +40,23 @@ CL_MAPPING = {
             "squad_value_m": {"type": "float"},
             "cl_roi":        {"type": "float"},
             "cl_roi_rank":   {"type": "integer"},
+        }
+    }
+}
+
+
+CLUSTER_MAPPING = {
+    "mappings": {
+        "properties": {
+            "league_name":    {"type": "keyword"},
+            "season":         {"type": "integer"},
+            "club_name":      {"type": "keyword"},
+            "points":         {"type": "integer"},
+            "squad_value_m":  {"type": "float"},
+            "roi":            {"type": "float"},
+            "roi_rank":       {"type": "integer"},
+            "cluster":        {"type": "integer"},
+            "cluster_label":  {"type": "keyword"},
         }
     }
 }
@@ -82,6 +100,20 @@ def run():
     ]
     helpers.bulk(es, cl_actions)
     print(f"Indexed {len(cl_actions)} documents into '{CL_INDEX}'.")
+
+    # --- ML Clusters ---
+    clusters = pd.read_parquet(f"{USAGE_PATH}/roi_clusters/data.parquet")
+    create_index(es, CLUSTER_INDEX, CLUSTER_MAPPING)
+    cluster_actions = [
+        {
+            "_index": CLUSTER_INDEX,
+            "_id":    f"{r['league_name']}_{r['season']}_{r['club_name']}",
+            "_source": r,
+        }
+        for r in clusters.to_dict(orient="records")
+    ]
+    helpers.bulk(es, cluster_actions)
+    print(f"Indexed {len(cluster_actions)} documents into '{CLUSTER_INDEX}'.")
 
 
 if __name__ == "__main__":

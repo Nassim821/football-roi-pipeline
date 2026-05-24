@@ -20,4 +20,5 @@ RUN pip install --no-cache-dir \
     cloudscraper \
     beautifulsoup4 \
     elasticsearch \
-    requests
+    requests \
+    scikit-learn

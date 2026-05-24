@@ -60,6 +60,11 @@ with DAG(
         from combination.combine_cl_roi import run
         run()
 
+    # ── ML ───────────────────────────────────────────────────────────────────
+    def run_ml_clustering():
+        from ml.ml_clustering import run
+        run()
+
     # ── Indexing ─────────────────────────────────────────────────────────────
     def run_index_to_elastic():
         from indexing.index_elastic import run
@@ -106,6 +111,11 @@ with DAG(
         python_callable=run_produce_usage_cl,
     )
 
+    ml_clustering = PythonOperator(
+        task_id="ml_clustering",
+        python_callable=run_ml_clustering,
+    )
+
     index_to_elastic = PythonOperator(
         task_id="index_to_elastic",
         python_callable=run_index_to_elastic,
@@ -122,4 +132,5 @@ with DAG(
     source_to_raw_2 >> raw_to_formatted_2 >> produce_usage_roi
     source_to_raw_3 >> raw_to_formatted_3 >> produce_usage_cl
 
-    [produce_usage_roi, produce_usage_cl] >> index_to_elastic
+    produce_usage_roi >> ml_clustering
+    [ml_clustering, produce_usage_cl] >> index_to_elastic
