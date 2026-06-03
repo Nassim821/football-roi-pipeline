@@ -45,28 +45,40 @@ def run():
     kmeans = KMeans(n_clusters=4, random_state=42, n_init=10)
     df["cluster"] = kmeans.fit_predict(X_scaled)
 
-    # Associer les labels lisibles aux clusters
-    # On identifie chaque cluster par ses centroïdes (budget moyen, roi moyen)
+    # Associer les labels lisibles aux clusters via assignation 1-pour-1.
+    # On projette chaque centroïde dans le plan (budget, roi) normalisé puis on
+    # calcule sa distance à 4 archétypes (un par coin) ; chaque label n'est
+    # attribué qu'une seule fois — pas de collapse possible.
     centroids = df.groupby("cluster")[["squad_value_m", "roi", "points"]].mean()
-    centroids_sorted = centroids.sort_values("roi", ascending=False)
 
-    # Mapping automatique basé sur ROI et budget
-    cluster_map = {}
-    ranked = centroids.copy()
-    ranked["roi_rank"]    = ranked["roi"].rank(ascending=False)
-    ranked["budget_rank"] = ranked["squad_value_m"].rank(ascending=False)
+    norm = (centroids[["squad_value_m", "roi"]] - centroids[["squad_value_m", "roi"]].min()) / \
+           (centroids[["squad_value_m", "roi"]].max() - centroids[["squad_value_m", "roi"]].min())
 
-    for c in ranked.index:
-        roi_r    = ranked.loc[c, "roi_rank"]
-        budget_r = ranked.loc[c, "budget_rank"]
-        if roi_r <= 2 and budget_r >= 3:
-            cluster_map[c] = "Efficaces"
-        elif budget_r <= 2 and roi_r <= 2:
-            cluster_map[c] = "Dominants"
-        elif budget_r <= 2 and roi_r >= 3:
-            cluster_map[c] = "Gaspilleurs"
-        else:
-            cluster_map[c] = "Standards"
+    archetypes = {
+        "Efficaces":   (0.0, 1.0),   # petit budget, gros ROI
+        "Dominants":   (1.0, 1.0),   # gros budget, gros ROI
+        "Gaspilleurs": (1.0, 0.0),   # gros budget, petit ROI
+        "Standards":   (0.0, 0.0),   # petit budget, petit ROI
+    }
+
+    # Greedy : on assigne en priorité les paires (cluster, archétype) les plus proches.
+    pairs = sorted(
+        (
+            ((norm.loc[c, "squad_value_m"] - bx) ** 2 + (norm.loc[c, "roi"] - by) ** 2,
+             c, label)
+            for c in norm.index
+            for label, (bx, by) in archetypes.items()
+        )
+    )
+    cluster_map: dict = {}
+    used_labels: set = set()
+    for _dist, c, label in pairs:
+        if c in cluster_map or label in used_labels:
+            continue
+        cluster_map[c] = label
+        used_labels.add(label)
+        if len(cluster_map) == len(centroids):
+            break
 
     df["cluster_label"] = df["cluster"].map(cluster_map)
 
