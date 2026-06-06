@@ -1,0 +1,637 @@
+% =============================================================================
+%  Football ROI Pipeline — Rapport final
+%  Nassim El Kharroubi — ISEP, École d'ingénieurs du numérique
+%  Compilation : pdflatex RAPPORT.tex (2 passes pour le sommaire)
+%                OU  xelatex RAPPORT.tex (recommandé)
+%
+%  Structure des fichiers attendue :
+%    docs/RAPPORT.tex          (ce fichier)
+%    screens/logo.jpg
+%    screens/airflow.png
+%    screens/arborescence_datalake.png
+%    screens/top_clubs_roi.png
+%    screens/roi_par_ligue.png
+%    screens/evolution_roi_barca_psg.png
+%    screens/budget_vs_points.png
+%    screens/budget_vs_stage_cl.png
+%    screens/evolution_cl_grands_clubs.png
+%    screens/data_table_roi.png
+%    screens/roi_par_cluster.png
+% =============================================================================
+
+\documentclass[11pt,a4paper]{article}
+
+% --- Encodage et langue ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+
+% --- Mise en page ---
+\usepackage[margin=2cm,top=2cm,bottom=2.5cm]{geometry}
+\usepackage{setspace}
+\setstretch{1.15}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4em}
+
+% --- Graphiques et tableaux ---
+\usepackage{graphicx}
+\graphicspath{{../screens/}{./screens/}{../../screens/}}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf,format=hang}
+
+% --- Couleurs ---
+\usepackage{xcolor}
+\definecolor{isepblue}{RGB}{0,82,156}
+\definecolor{lightgray}{RGB}{245,245,245}
+
+% --- Titres de sections en couleur ---
+\usepackage{titlesec}
+\titleformat{\section}
+  {\Large\bfseries\color{isepblue}}{\thesection.}{0.6em}{}
+\titleformat{\subsection}
+  {\large\bfseries\color{isepblue!85}}{\thesubsection}{0.6em}{}
+
+% --- En-tête et pied de page ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Football ROI Pipeline}}
+\fancyhead[R]{\small Nassim El Kharroubi}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% --- Liens hypertexte ---
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=isepblue,
+  urlcolor=isepblue,
+  citecolor=isepblue,
+  pdftitle={Football ROI Pipeline},
+  pdfauthor={Nassim El Kharroubi}
+}
+
+% --- Listings (code) ---
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{lightgray},
+  frame=single,
+  framesep=4pt,
+  rulecolor=\color{gray!30},
+  breaklines=true,
+  showstringspaces=false,
+  columns=flexible,
+  language=Python
+}
+
+% =============================================================================
+\begin{document}
+
+% --- Page de garde ---------------------------------------------------------
+\thispagestyle{empty}
+\begin{center}
+  \vspace*{1.5cm}
+  \includegraphics[width=0.45\textwidth]{logo.jpg}\\[2.5cm]
+
+  {\Huge\bfseries\color{isepblue} Football ROI Pipeline}\\[0.6cm]
+  {\Large Analyse du retour sur investissement sportif\\des clubs européens}\\[2cm]
+
+  \rule{0.7\textwidth}{0.4pt}\\[0.6cm]
+  {\large \textbf{Projet Apache Airflow \& Big Data}}\\[0.4cm]
+  4\textsuperscript{ème} année — École d'ingénieurs du numérique\\[2cm]
+
+  \begin{tabular}{rl}
+    \textbf{Auteur} & : Nassim El Kharroubi \\
+    \textbf{Date}   & : Juin 2026 \\
+    \textbf{Code source} & : \href{https://github.com/Nassim821/football-roi-pipeline}{github.com/Nassim821/football-roi-pipeline}
+  \end{tabular}
+  \vfill
+\end{center}
+\newpage
+
+% --- Sommaire --------------------------------------------------------------
+\thispagestyle{empty}
+\tableofcontents
+\newpage
+\setcounter{page}{1}
+
+% =============================================================================
+\section{Introduction et problématique}
+
+\subsection*{Contexte}
+
+Le football européen vit une période d'inflation historique. Les clubs dépensent
+chaque année des sommes record en transferts et en salaires, mais cet argent ne
+se traduit pas toujours en performances sportives. Certains clubs au budget
+modeste réussissent à finir devant des géants financiers, et d'autres dépensent
+des centaines de millions d'euros sans même gagner un trophée.
+
+\subsection*{Question business}
+
+Le projet répond à une question simple mais rarement posée dans les classements
+traditionnels :
+
+\begin{center}
+\textit{« Quels clubs investissent le mieux leur argent ? »}
+\end{center}
+
+Pour y répondre, j'ai inventé une métrique métier : le \textbf{ROI sportif},
+défini comme le nombre de points obtenus en championnat divisé par la valeur de
+l'effectif en millions d'euros.
+
+\[
+\text{ROI} = \frac{\text{points du championnat}}{\text{valeur de l'effectif (M\texteuro)}}
+\]
+
+Plus un club obtient de points avec un petit effectif, plus son ROI est élevé :
+il est « efficace ». À l'inverse, un club avec un énorme effectif mais peu de
+points a un ROI faible : il « gaspille ».
+
+\subsection*{Périmètre}
+
+\begin{itemize}
+  \item \textbf{5 championnats majeurs} : Ligue 1, Premier League, La Liga, Bundesliga, Serie A
+  \item \textbf{La Champions League} (avec un ROI adapté basé sur le stade atteint)
+  \item \textbf{3 saisons} : 2022, 2023 et 2024
+\end{itemize}
+
+\subsection*{Apport du machine learning}
+
+En plus du ROI, j'utilise un algorithme de clustering (K-Means avec 4 groupes)
+pour identifier automatiquement des profils de clubs : les \textit{Efficaces},
+les \textit{Dominants}, les \textit{Standards} et les \textit{Gaspilleurs}.
+
+% =============================================================================
+\section{Architecture technique}
+
+\subsection*{Vue d'ensemble}
+
+Le projet suit le pattern \textbf{Medallion}, très courant en data engineering.
+Il consiste à organiser le data lake en trois couches successives : \textit{raw}
+(données brutes), \textit{formatted} (données nettoyées) et \textit{usage}
+(données prêtes à l'emploi).
+
+\subsection*{Stack utilisée}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}lllX@{}}
+\toprule
+\textbf{Étape} & \textbf{Technologie} & \textbf{Rôle} \\
+\midrule
+Ingestion       & Python (requests, cloudscraper) & APIs REST + scraping HTML \\
+Stockage        & JSON puis Parquet               & Brut traçable / typé et compact \\
+Compute         & PySpark + pandas                & Jointures Spark, formatage pandas \\
+Orchestration   & Apache Airflow 3.2.1            & Dépendances, retries, planification \\
+ML              & scikit-learn (K-Means)          & Clustering non supervisé \\
+Indexation      & Elasticsearch 9.0.0             & Stockage analytique et recherche \\
+Visualisation   & Kibana 9.0.0                    & Dashboard interactif \\
+Conteneurisation & Docker Compose                 & Reproductibilité de l'environnement \\
+\bottomrule
+\end{tabularx}
+\caption{Récapitulatif des technologies utilisées.}
+\end{table}
+
+\subsection*{Pourquoi ces choix ?}
+
+\begin{itemize}
+  \item \textbf{Airflow} plutôt qu'un cron : pour gérer automatiquement les
+        dépendances entre tâches, relancer en cas d'erreur, et visualiser
+        l'avancement de chaque exécution.
+  \item \textbf{Parquet} plutôt que CSV ou JSON : format colonnaire compressé,
+        environ 10× plus rapide à lire et beaucoup plus léger.
+  \item \textbf{Spark} plutôt que pandas pour les jointures : Spark gère mieux
+        les volumes importants tout en restant lisible.
+  \item \textbf{Elasticsearch + Kibana} plutôt que Tableau ou PowerBI : open
+        source, performant pour la recherche, et intégré nativement.
+\end{itemize}
+
+% =============================================================================
+\section{Sources de données et data lake}
+
+\subsection*{Trois sources combinées}
+
+Pour calculer le ROI, j'ai eu besoin de deux types d'informations : les
+performances sportives (points, rang) et les valeurs marchandes (budget de
+l'effectif).
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}llXl@{}}
+\toprule
+\textbf{Source} & \textbf{Type} & \textbf{Donnée récupérée} & \textbf{Volume / run} \\
+\midrule
+API-Football (standings) & API REST officielle & Classements et résultats des 5 ligues & 15 appels \\
+Transfermarkt            & Web scraping HTML   & Valeurs marchandes des effectifs       & 15 scrapes \\
+API-Football (CL)        & API REST officielle & Matchs Champions League                & 3 appels \\
+\bottomrule
+\end{tabularx}
+\caption{Sources de données ingérées par le pipeline.}
+\end{table}
+
+\subsection*{Organisation du data lake}
+
+Le data lake respecte une convention de nommage stricte :
+\texttt{data/<layer>/<group>/<dataEntity>/<dateVersion>/}.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.55\textwidth]{arborescence_datalake.png}
+\caption{Arborescence du data lake en 3 couches : raw, formatted et usage.}
+\end{figure}
+
+\subsection*{Volumétrie finale}
+
+Après le pipeline complet, j'obtiens \textbf{312 lignes business} indexées dans
+Elasticsearch :
+
+\begin{itemize}
+  \item 254 lignes pour les championnats domestiques (5 ligues × $\sim$17 clubs × 3 saisons)
+  \item 58 lignes pour la Champions League
+  \item 254 lignes enrichies par le clustering ML
+\end{itemize}
+
+% =============================================================================
+\section{Le pipeline Airflow}
+
+\subsection*{Vue d'ensemble du DAG}
+
+Le DAG \texttt{football\_roi\_pipeline} est composé de \textbf{10 tâches}
+organisées en 5 étapes successives. Il tourne automatiquement tous les jours à
+6h UTC.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{airflow.png}
+\caption{Vue Graph du DAG Airflow : 10 tâches organisées en 5 étapes successives.}
+\end{figure}
+
+\subsection*{Détail des 10 tâches}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\toprule
+\textbf{Tâche} & \textbf{Couche} & \textbf{Rôle} \\
+\midrule
+\texttt{source\_to\_raw\_1} & source $\to$ raw       & Récupère les classements via l'API-Football \\
+\texttt{source\_to\_raw\_2} & source $\to$ raw       & Scrape Transfermarkt pour les valeurs marchandes \\
+\texttt{source\_to\_raw\_3} & source $\to$ raw       & Récupère les matchs de Champions League \\
+\texttt{raw\_to\_formatted\_1} & raw $\to$ formatted & Parse les JSON football $\to$ Parquet typé \\
+\texttt{raw\_to\_formatted\_2} & raw $\to$ formatted & Nettoie Transfermarkt (ex : "\texteuro 45.20m" $\to$ 45.2) \\
+\texttt{raw\_to\_formatted\_3} & raw $\to$ formatted & Calcule le stade max atteint en CL par club \\
+\texttt{produce\_usage}        & formatted $\to$ usage & JOIN Spark + calcul du ROI sportif \\
+\texttt{produce\_usage\_cl}    & formatted $\to$ usage & JOIN CL + calcul du \texttt{cl\_roi} \\
+\texttt{ml\_clustering}        & usage $\to$ usage     & K-Means 4 clusters et labelling automatique \\
+\texttt{index\_to\_elastic}    & usage $\to$ ES        & Pousse les 3 datasets vers Elasticsearch \\
+\bottomrule
+\end{tabularx}
+\caption{Liste des 10 tâches du DAG et leur rôle.}
+\end{table}
+
+\subsection*{Pourquoi 3 couches ?}
+
+Cette structure est une \textit{best practice} de data engineering :
+
+\begin{itemize}
+  \item La couche \textbf{raw} est immuable. Si demain l'API change ou tombe,
+        j'ai toujours mes données originales pour recalculer.
+  \item La couche \textbf{formatted} est techniquement propre (types corrects,
+        dates UTC, doublons supprimés) mais ne contient pas encore de logique métier.
+  \item La couche \textbf{usage} est spécifique à mon cas d'usage (le calcul
+        du ROI). Plusieurs cas d'usage peuvent cohabiter à ce niveau.
+\end{itemize}
+
+% =============================================================================
+\section{Le machine learning}
+
+\subsection*{Choix de l'algorithme}
+
+J'ai choisi \textbf{K-Means} parce que :
+
+\begin{itemize}
+  \item Le problème est non supervisé : je n'ai pas de labels au départ, je
+        veux découvrir des groupes naturels dans les données.
+  \item C'est un algorithme simple à interpréter : chaque cluster est défini
+        par un centroïde, facile à expliquer.
+  \item Il est rapide et léger : 254 lignes traitées en moins d'une seconde.
+\end{itemize}
+
+\subsection*{Features et préparation}
+
+Trois variables servent au clustering :
+\texttt{squad\_value\_m} (budget), \texttt{roi} (efficacité) et \texttt{points}
+(résultats). Elles sont normalisées avec \texttt{StandardScaler} pour éviter
+qu'une variable à grande échelle ne domine l'algorithme.
+
+\subsection*{Choix de $k=4$}
+
+J'ai fixé le nombre de clusters à 4 pour obtenir 4 archétypes métiers
+correspondant aux quadrants du plan (budget, ROI) :
+
+\begin{itemize}
+  \item Petit budget + gros ROI $\to$ \textbf{Efficaces}
+  \item Gros budget + gros ROI $\to$ \textbf{Dominants}
+  \item Gros budget + petit ROI $\to$ \textbf{Gaspilleurs}
+  \item Petit budget + petit ROI $\to$ \textbf{Standards}
+\end{itemize}
+
+\subsection*{Logique de labelling}
+
+Plutôt que d'attribuer les labels à la main, j'ai écrit une fonction qui
+calcule la distance euclidienne entre chaque centroïde et les 4 archétypes
+dans le plan normalisé. Une \textbf{assignation 1-pour-1} garantit que chaque
+label est utilisé exactement une fois (la première version avait un bug à ce
+sujet, expliqué en section 7).
+
+\subsection*{Résultats du clustering}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Cluster} & \textbf{Budget moyen (M\texteuro)} & \textbf{ROI moyen} & \textbf{Points moyens} & \textbf{Nombre de clubs} \\
+\midrule
+Efficaces    & 85  & 0.53 & 43 & 119 \\
+Dominants    & 155 & 0.27 & 40 & 31 \\
+Standards    & 423 & 0.15 & 59 & 26 \\
+Gaspilleurs  & 980 & 0.08 & 79 & 104 \\
+\bottomrule
+\end{tabular}
+\caption{Caractéristiques des 4 clusters identifiés par K-Means.}
+\end{table}
+
+% =============================================================================
+\section{Résultats : analyse des 8 visualisations}
+
+Le dashboard Kibana regroupe 8 visualisations. Chacune répond à une question
+spécifique du projet.
+
+% --- Viz 1 ---
+\subsection*{Viz 1 — Top des clubs par ROI}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{top_clubs_roi.png}
+\caption{Top 15 des clubs par ROI moyen sur les 3 saisons.}
+\end{figure}
+
+\textbf{Lecture :} Clermont Foot domine largement avec un ROI proche de 0.82,
+suivi de Rayo Vallecano, Holstein Kiel et Cadiz.
+
+\textbf{Insight :} Ce sont tous des clubs à petit budget. Le ROI inverse
+complètement le palmarès classique : les « petits » deviennent les plus
+efficaces, parce qu'ils marquent beaucoup de points par rapport à leur faible
+investissement.
+
+% --- Viz 2 ---
+\subsection*{Viz 2 — ROI moyen par ligue}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{roi_par_ligue.png}
+\caption{ROI moyen par championnat sur les 3 saisons.}
+\end{figure}
+
+\textbf{Lecture :} La Liga et la Ligue 1 sont en tête (ROI moyen $\approx$ 0.29),
+suivies de la Bundesliga puis de la Serie A. La Premier League est largement
+dernière avec un ROI de seulement 0.10.
+
+\textbf{Insight :} La Premier League est la ligue la plus riche du monde, mais
+c'est aussi la moins efficiente sportivement. L'inflation des salaires anglais
+ne se traduit pas par une supériorité proportionnelle en points.
+
+% --- Viz 3 ---
+\subsection*{Viz 3 — Évolution du ROI (Barça vs PSG)}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{evolution_roi_barca_psg.png}
+\caption{Évolution du ROI moyen du Barça et du PSG sur 3 saisons.}
+\end{figure}
+
+\textbf{Lecture :} Sur 3 saisons, le ROI du Barça passe de 0.105 à 0.082. Celui
+du PSG passe de 0.095 à 0.073. La tendance est nettement baissière pour les deux.
+
+\textbf{Insight :} Même pour les très grands clubs, dépenser plus n'apporte pas
+plus de points. Cette tendance illustre l'inflation des budgets non compensée
+par une amélioration des performances.
+
+% --- Viz 4 ---
+\subsection*{Viz 4 — Budget vs Points par ligue}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{budget_vs_points.png}
+\caption{Relation entre la valeur de l'effectif et les points marqués, par ligue.}
+\end{figure}
+
+\textbf{Lecture :} Globalement, plus le budget monte, plus les points montent.
+Mais la courbe sature au-delà de $\sim$600 M\texteuro. La Premier League (en
+rouge) est très éparpillée, ce qui montre qu'avoir un gros budget en Angleterre
+n'est pas une garantie.
+
+\textbf{Insight :} La relation budget-performance est \textbf{non linéaire}.
+C'est un argument économique fort contre les transferts à plusieurs centaines
+de millions : le rendement marginal de chaque euro investi décroît rapidement.
+
+% --- Viz 5 ---
+\subsection*{Viz 5 — Champions League : budget vs stade atteint}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{budget_vs_stage_cl.png}
+\caption{Valeur d'effectif des clubs en CL, colorée par le stade atteint.}
+\end{figure}
+
+\textbf{Lecture :} Manchester City, Arsenal, Barcelone et le Real Madrid ont
+les plus gros effectifs et atteignent les derniers stades (5 = demi-finale,
+6 = finale, 7 = vainqueur). Les clubs avec moins de 500 M\texteuro\ d'effectif
+sont rares au-delà des quarts.
+
+\textbf{Insight :} La Champions League est verrouillée par les clubs les plus
+riches. Le ticket d'entrée pour aller loin est élevé.
+
+% --- Viz 6 ---
+\subsection*{Viz 6 — Évolution CL des grands clubs}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{evolution_cl_grands_clubs.png}
+\caption{Parcours en Champions League des grands clubs sur 3 saisons.}
+\end{figure}
+
+\textbf{Lecture :} Sur 3 saisons, le Real Madrid a gagné 2 CL (2022 et 2024).
+Manchester City a gagné en 2023 puis chute à 2 en 2024. Le PSG progresse
+($3 \to 5 \to 7$). Le Barça remonte de 1 à 5.
+
+\textbf{Insight :} Même chez les plus riches, les performances en CL sont
+volatiles. La preuve qu'à ce niveau, l'argent ne fait plus toute la différence :
+il faut aussi la chance et les bons choix sportifs.
+
+% --- Viz 7 ---
+\subsection*{Viz 7 — Table ROI exhaustive}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{data_table_roi.png}
+\caption{Table récapitulative des top clubs triés par ROI décroissant.}
+\end{figure}
+
+\textbf{Lecture :} Tableau trié par ROI décroissant. Clermont Foot (0.818,
+42 points pour 54 M\texteuro), FC Heidenheim (0.632), Rayo Vallecano (0.611)
+sont en haut.
+
+\textbf{Insight :} Cette table sert de référence pour vérifier n'importe quel
+club. C'est aussi la donnée brute qui alimente les autres visualisations.
+
+% --- Viz 8 ---
+\subsection*{Viz 8 — Clusters ML : ROI moyen par profil}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{roi_par_cluster.png}
+\caption{ROI moyen par cluster identifié par K-Means.}
+\end{figure}
+
+\textbf{Lecture :} Les 4 clusters apparaissent clairement : Efficaces
+(ROI 0.53), Dominants (0.27), Standards (0.15), Gaspilleurs (0.08).
+
+\textbf{Insight :} C'est la vraie valeur ajoutée du ML. L'algorithme a
+découvert tout seul qu'il existe des \textbf{seuils d'efficience} dans le
+foot. En particulier, il révèle qu'au-delà d'un certain budget, l'argent ne
+se transforme plus du tout en points. Ce résultat n'aurait pas été visible
+sur une simple moyenne globale.
+
+% =============================================================================
+\section{Défis techniques surmontés}
+
+\subsection*{Défi 1 — Deadlock virtioFS sur macOS}
+
+\textbf{Symptôme :} Erreur \texttt{OSError: [Errno 35] Resource deadlock
+avoided} à chaque écriture de fichier Parquet par PyArrow dans le conteneur Docker.
+
+\textbf{Diagnostic :} Bug connu de la couche virtioFS de Docker Desktop sur
+macOS. Quand PyArrow utilise du memory-mapping sur un \textit{bind mount}, les
+locks ne sont jamais libérés.
+
+\textbf{Solution :} Remplacer le bind mount du dossier \texttt{data/} par un
+\textbf{volume Docker nommé}. Le volume nommé ne passe pas par virtioFS, le
+bug disparaît.
+
+\subsection*{Défi 2 — Conflit de namespace package dans Airflow 3}
+
+\textbf{Symptôme :} Erreur \texttt{ModuleNotFoundError: No module named
+'config.config'; 'config' is not a package}.
+
+\textbf{Diagnostic :} Le dossier \texttt{config/} du projet était monté à deux
+endroits différents dans le conteneur. Python le traitait comme un namespace
+package PEP 420, mal géré par le \textit{task runner} d'Airflow 3.
+
+\textbf{Solution :} Ajouter un simple \texttt{\_\_init\_\_.py} vide dans
+\texttt{config/}. Cela force Python à le considérer comme un package régulier,
+sans ambiguïté.
+
+\subsection*{Défi 3 — Timeout Elasticsearch sur la création d'index}
+
+\textbf{Symptôme :} La tâche \texttt{index\_to\_elastic} timeout au moment de
+créer l'index \texttt{football\_roi\_clusters}.
+
+\textbf{Diagnostic :} Par défaut, Elasticsearch crée des indices avec 1 réplique.
+Sur un cluster single-node, la réplique ne peut pas être allouée : le cluster
+passe en YELLOW, et la création d'index attend jusqu'au timeout client (10 s).
+
+\textbf{Solution :} Forcer \texttt{"number\_of\_replicas": 0} dans les mappings
+des indices. La création devient instantanée.
+
+\subsection*{Défi 4 — Effondrement des labels du clustering}
+
+\textbf{Symptôme :} 4 clusters K-Means détectés, mais seulement 2 labels uniques
+attribués (Efficaces et Gaspilleurs). Les labels \textit{Standards} et
+\textit{Dominants} n'étaient jamais utilisés.
+
+\textbf{Diagnostic :} Ma première logique de labelling utilisait des conditions
+de seuils de rangs qui se chevauchaient. Quand plusieurs clusters tombaient
+dans la même condition, ils recevaient le même label.
+
+\textbf{Solution :} Réécrire avec une \textbf{assignation 1-pour-1} basée sur
+la distance euclidienne aux 4 archétypes du plan normalisé. Ainsi, chaque
+label est attribué exactement une fois.
+
+% =============================================================================
+\section{Conclusion}
+
+\subsection*{Bilan technique}
+
+J'ai construit un pipeline data complet et fonctionnel de bout en bout :
+
+\begin{itemize}
+  \item 3 sources hétérogènes ingérées automatiquement chaque jour
+  \item Un data lake en 3 couches respectant les bonnes pratiques
+  \item Une orchestration Airflow propre avec 10 tâches dépendantes
+  \item Un calcul métier en PySpark
+  \item Un enrichissement par machine learning
+  \item Une indexation dans Elasticsearch et une visualisation dans Kibana
+\end{itemize}
+
+Le tout est conteneurisé avec Docker, reproductible par n'importe quel
+utilisateur grâce au repo GitHub et au guide d'installation Windows fourni.
+
+\subsection*{Bilan business}
+
+Le projet apporte trois insights principaux :
+
+\begin{enumerate}
+  \item \textbf{Le ROI sportif inverse le palmarès classique.} Les « petits »
+        clubs comme Clermont Foot ou Rayo Vallecano sont en réalité les plus
+        efficaces. Cette métrique offre une lecture nouvelle du football.
+  \item \textbf{La relation budget-points est non linéaire.} Au-delà d'un
+        certain seuil ($\sim$600 M\texteuro), dépenser plus n'apporte plus de
+        points proportionnels. C'est un argument économique fort.
+  \item \textbf{Le machine learning révèle des archétypes économiques.} Les 4
+        clusters montrent qu'il existe des profils de clubs structurellement
+        différents, et que certains sont condamnés à un faible ROI par leur
+        taille.
+\end{enumerate}
+
+\subsection*{Limites identifiées}
+
+\begin{itemize}
+  \item Le projet est en batch quotidien, pas en streaming temps réel.
+  \item Le plan API gratuit est limité à 100 requêtes par jour.
+  \item Elasticsearch est en single-node, sans haute disponibilité.
+\end{itemize}
+
+\subsection*{Pistes futures}
+
+\begin{itemize}
+  \item Ajouter Kafka pour ingérer des données temps réel (matchs en direct).
+  \item Monitorer le pipeline avec Prometheus et Grafana.
+  \item Écrire des tests automatisés (pytest) pour la robustesse.
+  \item Étendre à d'autres sports (basket, F1) pour valider la généralité de la métrique.
+\end{itemize}
+
+\subsection*{Livrables}
+
+\begin{itemize}
+  \item \textbf{Code source} : \url{https://github.com/Nassim821/football-roi-pipeline}
+  \item \textbf{Vidéo de démonstration} : \textit{(lien à compléter)}
+  \item \textbf{Dashboard Kibana} : exporté en \texttt{.ndjson} dans le dossier \texttt{kibana/} du repo
+  \item \textbf{Guide d'installation Windows} : \texttt{docs/SETUP\_WINDOWS.md}
+\end{itemize}
+
+\vspace{1cm}
+\begin{center}
+\textit{Merci de votre lecture.}
+\end{center}
+
+\end{document}
