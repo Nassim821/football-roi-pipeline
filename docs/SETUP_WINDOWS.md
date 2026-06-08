@@ -444,5 +444,4 @@ football-roi-pipeline/
 
 ## Contact
 
-Pour toute question : Nassim El Kharroubi
 Repo GitHub : https://github.com/Nassim821/football-roi-pipeline
