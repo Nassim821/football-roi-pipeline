@@ -139,13 +139,7 @@ AIRFLOW_UID=50000
 
 ### Générer la FERNET_KEY
 
-Option simple — utilise celle de Nassim si tu veux les mêmes données encryptées :
-
-```
-FERNET_KEY=hjapAiFS3_flZbtivCsPJJ6g0Oha4yGQAC8728g5X7c=
-```
-
-Ou génère la tienne (Python requis) :
+Génère ta propre clé (Python requis) :
 
 ```powershell
 pip install cryptography
@@ -156,35 +150,9 @@ Copie la sortie dans `.env`.
 
 ---
 
-## 6. Adapter les chemins absolus dans `docker-compose.yaml`
+## 6. Chemins dans `docker-compose.yaml`
 
-Ouvre `docker-compose.yaml` dans le Bloc-notes :
-
-```powershell
-notepad docker-compose.yaml
-```
-
-Cherche le bloc `volumes:` (vers la ligne 84) et remplace les 3 chemins absolus pointant vers Nassim par les tiens :
-
-**Avant** :
-```yaml
-- /Users/nassimelkharroubi/Documents/Projet_data/jobs:/opt/airflow/jobs
-- football-data:/opt/airflow/data
-- /Users/nassimelkharroubi/Documents/Projet_data:/opt/airflow/project_root
-```
-
-**Après** (adapte `<TON_USER>`) :
-```yaml
-- C:/Users/<TON_USER>/Projets/football-roi-pipeline/jobs:/opt/airflow/jobs
-- football-data:/opt/airflow/data
-- C:/Users/<TON_USER>/Projets/football-roi-pipeline:/opt/airflow/project_root
-```
-
-> ⚠️ **Important** : utilise des **slashes forward `/`** même sur Windows pour les chemins Docker. Pas de backslashes.
->
-> ⚠️ Ne touche pas à la ligne `football-data:/opt/airflow/data` — c'est un volume nommé Docker.
-
-Sauvegarde.
+Rien à modifier : les volumes utilisent des chemins relatifs au dossier du projet. Lance simplement `docker compose` depuis la racine du repo.
 
 ---
 
@@ -239,9 +207,9 @@ Tu dois voir **7 services** tous en `Up X seconds (healthy)`.
 
 ## 8. Charger les données
 
-Deux options selon ce que Nassim t'a partagé.
+Deux options selon que tu disposes déjà d'un export du data lake ou non.
 
-### Option A — Nassim t'a envoyé un dossier `data/` (raccourci, conseillé)
+### Option A — Tu as déjà un dossier `data/` exporté (raccourci, conseillé)
 
 1. Place le dossier `data/` à la racine du projet :
    ```
@@ -284,13 +252,13 @@ Va sur **http://localhost:5601** :
 
 1. Menu burger ☰ en haut à gauche → **Stack Management** → **Saved Objects**
 2. Bouton **Import** en haut à droite
-3. Sélectionne le fichier `kibana\dashboard.ndjson` du repo (si Nassim l'a poussé)
+3. Sélectionne le fichier `kibana\dashboard.ndjson` du repo
 4. Coche **"Automatically overwrite all saved objects"**
 5. Clique **Import**
 
 Puis ☰ → **Dashboards** → ouvre le dashboard Football ROI.
 
-> Si `kibana\dashboard.ndjson` n'existe pas dans le repo, demande à Nassim de te l'envoyer ou recrée le dashboard manuellement avec les 8 viz décrites dans le rapport.
+> Tu peux aussi recréer le dashboard manuellement avec les 8 visualisations décrites dans `docs/RAPPORT.md`.
 
 ---
 

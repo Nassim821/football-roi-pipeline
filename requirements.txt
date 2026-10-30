@@ -1,7 +1,12 @@
-apache-airflow==2.8.1
-pyspark==3.5.0
-elasticsearch==9.0.0
-requests==2.31.0
-beautifulsoup4==4.12.3
-cloudscraper==1.2.71
-lxml==5.1.0
+# Dependencies for running the jobs outside Docker (local development).
+# Inside Docker, Airflow 3.2.1 is provided by the base image and these
+# packages are installed by the Dockerfile.
+pandas
+pyarrow
+pyspark>=3.5
+scikit-learn
+requests
+cloudscraper
+beautifulsoup4
+lxml
+elasticsearch>=9.0.0,<10

@@ -31,3 +31,9 @@ venv/
 airflow.cfg
 airflow.db
 webserver_config.py
+
+# Extra
+plugins/
+.env.*
+!.env.example
+.claude/
