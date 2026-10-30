@@ -60,7 +60,6 @@ En plus du ROI, j'utilise un algorithme de clustering (K-Means avec 4 groupes) p
 
 Le projet suit le pattern **Medallion**, très courant en data engineering. Il consiste à organiser le data lake en trois couches successives.
 
-![Architecture](../screens/architecture.png)
 
 ### Stack utilisée
 
@@ -138,7 +137,6 @@ Après le pipeline complet, j'obtiens **312 lignes business** indexées dans Ela
 
 Le DAG `football_roi_pipeline` est composé de **10 tâches** organisées en 5 étapes successives. Il tourne automatiquement tous les jours à 6h UTC.
 
-![DAG Airflow](../screens/airflow.png)
 
 ### Détail des tâches
 
@@ -215,7 +213,6 @@ Le dashboard Kibana regroupe 8 visualisations. Chacune répond à une question s
 
 ### Viz 1 — Top des clubs par ROI
 
-![Top clubs par ROI](../screens/Top%20club%20par%20ROI.png)
 
 **Lecture :** Clermont Foot domine largement avec un ROI proche de 0.82, suivi de Rayo Vallecano, Holstein Kiel et Cadiz.
 
@@ -223,7 +220,6 @@ Le dashboard Kibana regroupe 8 visualisations. Chacune répond à une question s
 
 ### Viz 2 — ROI moyen par ligue
 
-![ROI par ligue](../screens/top%20ligue%20par%20roi.png)
 
 **Lecture :** La Liga et la Ligue 1 sont en tête avec un ROI moyen autour de 0.28-0.29. La Bundesliga et la Serie A suivent. La Premier League est largement dernière avec un ROI de seulement 0.10.
 
@@ -231,7 +227,6 @@ Le dashboard Kibana regroupe 8 visualisations. Chacune répond à une question s
 
 ### Viz 3 — Évolution du ROI (exemple Barça vs PSG)
 
-![Évolution ROI](../screens/ROI%20moyen%20Barca%20vs%20PSG.png)
 
 **Lecture :** Sur les 3 saisons, le ROI du Barça passe de 0.105 à 0.082. Celui du PSG passe de 0.095 à 0.073. La tendance est nettement baissière pour les deux.
 
@@ -239,7 +234,6 @@ Le dashboard Kibana regroupe 8 visualisations. Chacune répond à une question s
 
 ### Viz 4 — Budget vs Points par ligue
 
-![Budget vs Points](../screens/budget%20vs%20pts%20.png)
 
 **Lecture :** Globalement, plus le budget monte, plus les points montent. Mais la courbe sature au-delà de ~600 M€. La Premier League (en rouge) est très éparpillée, ce qui montre qu'avoir un gros budget en Angleterre n'est pas une garantie.
 
@@ -247,7 +241,6 @@ Le dashboard Kibana regroupe 8 visualisations. Chacune répond à une question s
 
 ### Viz 5 — Champions League : Budget vs Stade atteint
 
-![CL Budget vs Stade](../screens/budget%20vs%20stage%20atteint.png)
 
 **Lecture :** Manchester City, Arsenal, Barcelone et le Real Madrid ont les plus gros effectifs et atteignent les derniers stades (5 = demi, 6 = finale, 7 = vainqueur). Les clubs avec moins de 500 M€ d'effectif sont rares au-delà des quarts.
 
@@ -255,7 +248,6 @@ Le dashboard Kibana regroupe 8 visualisations. Chacune répond à une question s
 
 ### Viz 6 — Évolution CL des grands clubs
 
-![Évolution CL](../screens/évolution_CL.png)
 
 **Lecture :** Sur 3 saisons, le Real Madrid a gagné 2 CL (2022 et 2024). Manchester City a gagné en 2023 puis chute à 2 en 2024. Le PSG progresse (3 → 5 → 7 en 2024 : finale). Le Barça remonte de 1 à 5.
 
@@ -263,7 +255,6 @@ Le dashboard Kibana regroupe 8 visualisations. Chacune répond à une question s
 
 ### Viz 7 — Table ROI exhaustive
 
-![Data Table](../screens/data%20table.png)
 
 **Lecture :** Tableau trié par ROI décroissant. Clermont Foot (0.818, 42 points pour 54 M€ d'effectif), FC Heidenheim (0.632), Rayo Vallecano (0.611) sont en haut.
 
@@ -271,7 +262,6 @@ Le dashboard Kibana regroupe 8 visualisations. Chacune répond à une question s
 
 ### Viz 8 — Clusters ML : ROI moyen par profil
 
-![Clusters ML](../screens/Roi%20par%20cluster.png)
 
 **Lecture :** Les 4 clusters apparaissent clairement : Efficaces (ROI 0.53), Dominants (0.27), Standards (0.15), Gaspilleurs (0.08).
 
