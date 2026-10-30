@@ -16,7 +16,7 @@ SEASON  = 2023          # kept for backwards compatibility
 SEASONS = [2022, 2023, 2024]
 
 # Datalake paths
-BASE_PATH = os.getenv("DATALAKE_PATH", "/Users/nassimelkharroubi/Documents/Projet_data/data")
+BASE_PATH = os.getenv("DATALAKE_PATH", os.path.join(os.getcwd(), "data"))
 RAW_PATH       = f"{BASE_PATH}/raw"
 FORMATTED_PATH = f"{BASE_PATH}/formatted"
 USAGE_PATH     = f"{BASE_PATH}/usage"
